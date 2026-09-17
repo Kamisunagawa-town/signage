@@ -4,85 +4,216 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>デジタルサイネージ</title>
+
 <style>
   /* ===== 基本設定（TV全画面・16:9想定） ===== */
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
-    width: 100%; height: 100%;
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
     background: #0b1f3a;
     color: #fff;
     font-family: "Noto Sans JP", "Meiryo", sans-serif;
-    overflow: hidden; /* スクロールバー非表示 */
-    cursor: none;     /* サイネージなのでカーソル非表示 */
+    overflow: hidden;
+    cursor: none;
   }
+
   /* ===== 上部の常時表示バー（時計・天気） ===== */
   #topbar {
-    position: fixed; top: 0; left: 0; width: 100%; height: 12vh;
-    display: flex; justify-content: space-between; align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 12vh;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 0 3vw;
-    background: rgba(0,0,0,0.35);
+    background: rgba(0, 0, 0, 0.35);
     z-index: 10;
   }
-  #clock { font-size: 4.5vh; font-weight: bold; }
-  #date  { font-size: 2.5vh; opacity: 0.85; }
-  #weather { font-size: 3.5vh; }
+
+  #clock {
+    font-size: 4.5vh;
+    font-weight: bold;
+  }
+
+  #date {
+    font-size: 2.5vh;
+    opacity: 0.85;
+  }
+
+  #weather {
+    font-size: 3.5vh;
+    text-align: right;
+  }
 
   /* ===== 各画面（スライド）の共通設定 ===== */
   .screen {
-    position: fixed; top: 12vh; left: 0;
-    width: 100%; height: 88vh;
+    position: fixed;
+    top: 12vh;
+    left: 0;
+    width: 100%;
+    height: 88vh;
     display: none;
     padding: 4vh 4vw;
     animation: fade 1s ease;
   }
-  .screen.active { display: block; }
-  @keyframes fade { from {opacity:0;} to {opacity:1;} }
+
+  .screen.active {
+    display: block;
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
 
   h2.title {
-    font-size: 5vh; margin-bottom: 3vh;
-    border-left: 1.2vh solid #ffcc00; padding-left: 2vw;
+    font-size: 5vh;
+    margin-bottom: 3vh;
+    border-left: 1.2vh solid #ffcc00;
+    padding-left: 2vw;
   }
 
   /* ===== お知らせ ===== */
   .news-item {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 1.5vh;
-    padding: 2.5vh 3vw; margin-bottom: 2.5vh;
+    padding: 2.5vh 3vw;
+    margin-bottom: 2.5vh;
   }
-  .news-item .t { font-size: 3.5vh; font-weight: bold; margin-bottom: 1vh; }
-  .news-item .b { font-size: 2.8vh; opacity: 0.9; }
+
+  .news-item .t {
+    font-size: 3.5vh;
+    font-weight: bold;
+    margin-bottom: 1vh;
+  }
+
+  .news-item .b {
+    font-size: 2.8vh;
+    line-height: 1.5;
+    opacity: 0.9;
+    white-space: pre-wrap;
+  }
 
   /* ===== 会議室予定（表） ===== */
-  table { width: 100%; border-collapse: collapse; font-size: 3vh; }
-  th, td { padding: 2vh 1.5vw; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.2); }
-  th { background: rgba(255,204,0,0.2); font-size: 2.8vh; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 3vh;
+  }
+
+  th,
+  td {
+    padding: 2vh 1.5vw;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  th {
+    background: rgba(255, 204, 0, 0.2);
+    font-size: 2.8vh;
+  }
+
+  th:first-child,
+  td:first-child {
+    width: 22%;
+    white-space: nowrap;
+  }
+
+  th:nth-child(2),
+  td:nth-child(2) {
+    width: 28%;
+  }
 
   /* ===== 画像スライド ===== */
+  #imgScreen {
+    padding: 0;
+  }
+
   #imgScreen img {
-    width: 100%; height: 100%; object-fit: contain;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   /* ===== 天気予報 ===== */
-  .forecast { display: flex; gap: 2vw; justify-content: space-around; }
+  .forecast {
+    display: flex;
+    gap: 2vw;
+    justify-content: space-around;
+  }
+
   .fc-item {
     flex: 1;
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 2vh;
     padding: 3vh 1vw;
     text-align: center;
   }
-  .fc-day  { font-size: 3.5vh; font-weight: bold; margin-bottom: 2vh; }
-  .fc-icon { font-size: 9vh; line-height: 1; margin-bottom: 2vh; }
-  .fc-desc { font-size: 2.8vh; margin-bottom: 2vh; }
-  .fc-temp { font-size: 3.2vh; margin-bottom: 1.5vh; }
-  .fc-temp .max { color: #ff7b7b; font-weight: bold; }
-  .fc-temp .min { color: #7bb8ff; font-weight: bold; }
-  .fc-pop  { font-size: 2.4vh; opacity: 0.85; }
 
-  /* ===== 読み込み中表示 ===== */
-  .loading { font-size: 3vh; opacity: 0.6; }
+  .fc-day {
+    font-size: 3.5vh;
+    font-weight: bold;
+    margin-bottom: 2vh;
+  }
+
+  .fc-icon {
+    font-size: 9vh;
+    line-height: 1;
+    margin-bottom: 2vh;
+  }
+
+  .fc-desc {
+    font-size: 2.8vh;
+    margin-bottom: 2vh;
+  }
+
+  .fc-temp {
+    font-size: 3.2vh;
+    margin-bottom: 1.5vh;
+  }
+
+  .fc-temp .max {
+    color: #ff7b7b;
+    font-weight: bold;
+  }
+
+  .fc-temp .min {
+    color: #7bb8ff;
+    font-weight: bold;
+  }
+
+  .fc-pop {
+    font-size: 2.4vh;
+    opacity: 0.85;
+  }
+
+  /* ===== 状態表示 ===== */
+  .loading {
+    font-size: 3vh;
+    line-height: 1.6;
+    opacity: 0.7;
+  }
+
+  .error-message {
+    color: #ffd0d0;
+  }
 </style>
 </head>
+
 <body>
 
   <!-- 常時表示バー -->
@@ -91,54 +222,71 @@
       <div id="clock">--:--:--</div>
       <div id="date">----/--/-- (-)</div>
     </div>
+
     <div id="weather">天気を取得中…</div>
   </div>
 
   <!-- 画面1：お知らせ -->
   <section id="newsScreen" class="screen active">
     <h2 class="title">お知らせ</h2>
-    <div id="newsList"><p class="loading">読み込み中…</p></div>
+    <div id="newsList">
+      <p class="loading">読み込み中…</p>
+    </div>
   </section>
 
   <!-- 画面2：会議室予定 -->
   <section id="roomScreen" class="screen">
     <h2 class="title">本日の会議室利用予定</h2>
-    <div id="roomList"><p class="loading">読み込み中…</p></div>
+    <div id="roomList">
+      <p class="loading">読み込み中…</p>
+    </div>
   </section>
 
   <!-- 画面3：画像スライド -->
   <section id="imgScreen" class="screen">
-    <img id="slideImg" src="" alt="">
+    <img id="slideImg" src="" alt="お知らせ画像">
   </section>
 
   <!-- 画面4：天気予報 -->
   <section id="weatherScreen" class="screen">
     <h2 class="title">上砂川町の天気予報</h2>
-    <div id="forecastList" class="forecast"><p class="loading">読み込み中…</p></div>
+    <div id="forecastList" class="forecast">
+      <p class="loading">読み込み中…</p>
+    </div>
   </section>
 
 <script>
 /* =========================================================
-   設定（ここを自分の環境に合わせて変更する）
+   設定
    ========================================================= */
 const CONFIG = {
-  // 画面を切り替える間隔（ミリ秒）
-  screenInterval: 15000,      // 15秒ごとに画面切替
-  // データを再取得する間隔（ミリ秒）※原課の更新を反映
-  dataRefresh: 300000,        // 5分ごとに再取得
-  // 画像スライドの切替間隔
-  imageInterval: 7000,        // 7秒ごと
-  // 画像ファイル（GitHubリポジトリ内 images/ フォルダに置く想定）
+  // 画面切替：15秒
+  screenInterval: 15000,
+
+  // GASデータ再取得：5分
+  dataRefresh: 300000,
+
+  // 画像切替：7秒
+  imageInterval: 7000,
+
+  // 天気再取得：30分
+  weatherRefresh: 1800000,
+
+  // GitHubリポジトリ内の画像
   images: [
     "images/photo1.png",
     "images/photo2.png",
     "images/photo3.png"
   ],
-  // Googleスプレッドシート等から取得するデータURL（後で差し替え）
-  newsDataUrl: "",  // 例: GASのWebアプリURL や 公開CSV/JSON
-  roomDataUrl: "",
-  // 天気の更新間隔（ミリ秒）
-  weatherRefresh: 1800000     // 30分ごと
+
+  /*
+   * JSONの表示を確認したGASのWebアプリURLへ置き換えてください。
+   * 末尾が /exec のURLを指定します。
+   *
+   * 例：
+   * https://script.google.com/macros/s/デプロイID/exec
+   */
+  dataApiUrl: "https://script.google.com/macros/s/AKfycbzASefZCcYAk3ngRdBsMANiO1FVQ0zsrAc8nJ4qmpHsH5IoReAhBL_E-0Dt72QVEZCy/exec"
 };
 
 /* =========================================================
@@ -146,153 +294,447 @@ const CONFIG = {
    ========================================================= */
 function updateClock() {
   const now = new Date();
-  const days = ["日","月","火","水","木","金","土"];
-  const p = n => String(n).padStart(2, "0");
+  const days = ["日", "月", "火", "水", "木", "金", "土"];
+  const pad = number => String(number).padStart(2, "0");
+
   document.getElementById("clock").textContent =
-    `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
   document.getElementById("date").textContent =
-    `${now.getFullYear()}/${p(now.getMonth()+1)}/${p(now.getDate())} (${days[now.getDay()]})`;
+    `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())}` +
+    ` (${days[now.getDay()]})`;
 }
-setInterval(updateClock, 1000);
+
 updateClock();
+setInterval(updateClock, 1000);
 
 /* =========================================================
    天気（Open-Meteo・上砂川町）
-   API登録不要・無料・CORS対応
    ========================================================= */
 
-// 上砂川町役場の座標
-const KAMISUNAGAWA = { lat: 43.48258, lon: 141.98397 };
+// 上砂川町役場付近の座標
+const KAMISUNAGAWA = {
+  lat: 43.48258,
+  lon: 141.98397
+};
 
-// 天気コード → 日本語＋アイコン変換表（WMO Weather codeに準拠）
+// WMO天気コードと表示内容の対応
 const WEATHER_MAP = {
   0:  ["快晴", "☀"],
   1:  ["晴れ", "🌤"],
   2:  ["一部くもり", "⛅"],
   3:  ["くもり", "☁"],
-  45: ["霧", "🌫"], 48: ["霧", "🌫"],
-  51: ["弱い霧雨", "🌦"], 53: ["霧雨", "🌦"], 55: ["強い霧雨", "🌧"],
-  61: ["弱い雨", "🌦"], 63: ["雨", "🌧"], 65: ["強い雨", "🌧"],
-  66: ["みぞれ", "🌧"], 67: ["みぞれ", "🌧"],
-  71: ["弱い雪", "🌨"], 73: ["雪", "❄"], 75: ["大雪", "❄"],
+  45: ["霧", "🌫"],
+  48: ["霧", "🌫"],
+  51: ["弱い霧雨", "🌦"],
+  53: ["霧雨", "🌦"],
+  55: ["強い霧雨", "🌧"],
+  56: ["弱い着氷性の霧雨", "🌧"],
+  57: ["強い着氷性の霧雨", "🌧"],
+  61: ["弱い雨", "🌦"],
+  63: ["雨", "🌧"],
+  65: ["強い雨", "🌧"],
+  66: ["弱い着氷性の雨", "🌧"],
+  67: ["強い着氷性の雨", "🌧"],
+  71: ["弱い雪", "🌨"],
+  73: ["雪", "❄"],
+  75: ["大雪", "❄"],
   77: ["細氷", "❄"],
-  80: ["にわか雨", "🌦"], 81: ["にわか雨", "🌧"], 82: ["激しいにわか雨", "🌧"],
-  85: ["にわか雪", "🌨"], 86: ["強いにわか雪", "❄"],
-  95: ["雷雨", "⛈"], 96: ["雷雨(ひょう)", "⛈"], 99: ["激しい雷雨", "⛈"]
+  80: ["弱いにわか雨", "🌦"],
+  81: ["にわか雨", "🌧"],
+  82: ["激しいにわか雨", "🌧"],
+  85: ["にわか雪", "🌨"],
+  86: ["強いにわか雪", "❄"],
+  95: ["雷雨", "⛈"],
+  96: ["雷雨・弱いひょう", "⛈"],
+  99: ["雷雨・強いひょう", "⛈"]
 };
-function codeToText(code) { return (WEATHER_MAP[code] || ["－", ""]); }
+
+function codeToWeather(code) {
+  return WEATHER_MAP[code] || ["不明", "－"];
+}
 
 async function updateWeather() {
-  const url = "https://api.open-meteo.com/v1/forecast"
-    + `?latitude=${KAMISUNAGAWA.lat}&longitude=${KAMISUNAGAWA.lon}`
-    + "&current_weather=true"
-    + "&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
-    + "&timezone=Asia/Tokyo&forecast_days=4";
+  const url =
+    "https://api.open-meteo.com/v1/forecast" +
+    `?latitude=${KAMISUNAGAWA.lat}` +
+    `&longitude=${KAMISUNAGAWA.lon}` +
+    "&current=temperature_2m,weather_code" +
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+    "&timezone=Asia%2FTokyo" +
+    "&forecast_days=4";
 
   try {
-    const res = await fetch(url);
-    const data = await res.json();
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store"
+    });
 
-    // --- 現在の天気（上部バー） ---
-    const cur = data.current_weather;
-    const [curText, curIcon] = codeToText(cur.weathercode);
-    document.getElementById("weather").textContent =
-      `${curIcon} ${curText}  ${Math.round(cur.temperature)}℃`;
-
-    // --- 週間予報（予報画面） ---
-    const d = data.daily;
-    const days = ["日","月","火","水","木","金","土"];
-    let html = "";
-    for (let i = 0; i < d.time.length; i++) {
-      const dt = new Date(d.time[i]);
-      const label = (i === 0) ? "今日"
-                  : (i === 1) ? "明日"
-                  : `${dt.getMonth()+1}/${dt.getDate()}(${days[dt.getDay()]})`;
-      const [txt, icon] = codeToText(d.weathercode[i]);
-      html += `
-        <div class="fc-item">
-          <div class="fc-day">${label}</div>
-          <div class="fc-icon">${icon}</div>
-          <div class="fc-desc">${txt}</div>
-          <div class="fc-temp">
-            <span class="max">${Math.round(d.temperature_2m_max[i])}℃</span> /
-            <span class="min">${Math.round(d.temperature_2m_min[i])}℃</span>
-          </div>
-          <div class="fc-pop">降水 ${d.precipitation_probability_max[i] ?? "－"}%</div>
-        </div>`;
+    if (!response.ok) {
+      throw new Error(`天気API HTTP ${response.status}`);
     }
-    document.getElementById("forecastList").innerHTML = html;
 
-  } catch (e) {
-    document.getElementById("weather").textContent = "天気を取得できません";
+    const data = await response.json();
+
+    if (!data.current || !data.daily) {
+      throw new Error("天気データの形式が正しくありません。");
+    }
+
+    // 上部バー：現在の天気
+    const current = data.current;
+    const [currentText, currentIcon] =
+      codeToWeather(current.weather_code);
+
+    document.getElementById("weather").textContent =
+      `${currentIcon} 上砂川町 ${currentText} ` +
+      `${Math.round(current.temperature_2m)}℃`;
+
+    // 天気予報画面
+    const daily = data.daily;
+    const days = ["日", "月", "火", "水", "木", "金", "土"];
+    const forecastList = document.getElementById("forecastList");
+
+    forecastList.replaceChildren();
+
+    for (let i = 0; i < daily.time.length; i++) {
+      /*
+       * YYYY-MM-DDを直接分解し、Androidブラウザにおける
+       * 日付・タイムゾーン解釈のずれを避けます。
+       */
+      const dateParts = daily.time[i].split("-").map(Number);
+      const date = new Date(
+        dateParts[0],
+        dateParts[1] - 1,
+        dateParts[2]
+      );
+
+      let label;
+
+      if (i === 0) {
+        label = "今日";
+      } else if (i === 1) {
+        label = "明日";
+      } else {
+        label =
+          `${date.getMonth() + 1}/${date.getDate()}` +
+          `(${days[date.getDay()]})`;
+      }
+
+      const [weatherText, weatherIcon] =
+        codeToWeather(daily.weather_code[i]);
+
+      const precipitation =
+        daily.precipitation_probability_max[i] == null
+          ? "－"
+          : daily.precipitation_probability_max[i];
+
+      const item = document.createElement("div");
+      item.className = "fc-item";
+
+      const dayElement = document.createElement("div");
+      dayElement.className = "fc-day";
+      dayElement.textContent = label;
+
+      const iconElement = document.createElement("div");
+      iconElement.className = "fc-icon";
+      iconElement.textContent = weatherIcon;
+
+      const descriptionElement = document.createElement("div");
+      descriptionElement.className = "fc-desc";
+      descriptionElement.textContent = weatherText;
+
+      const temperatureElement = document.createElement("div");
+      temperatureElement.className = "fc-temp";
+
+      const maxElement = document.createElement("span");
+      maxElement.className = "max";
+      maxElement.textContent =
+        `${Math.round(daily.temperature_2m_max[i])}℃`;
+
+      const separator = document.createTextNode(" / ");
+
+      const minElement = document.createElement("span");
+      minElement.className = "min";
+      minElement.textContent =
+        `${Math.round(daily.temperature_2m_min[i])}℃`;
+
+      temperatureElement.appendChild(maxElement);
+      temperatureElement.appendChild(separator);
+      temperatureElement.appendChild(minElement);
+
+      const precipitationElement = document.createElement("div");
+      precipitationElement.className = "fc-pop";
+      precipitationElement.textContent = `降水 ${precipitation}%`;
+
+      item.appendChild(dayElement);
+      item.appendChild(iconElement);
+      item.appendChild(descriptionElement);
+      item.appendChild(temperatureElement);
+      item.appendChild(precipitationElement);
+
+      forecastList.appendChild(item);
+    }
+  } catch (error) {
+    console.error("天気取得エラー:", error);
+
+    document.getElementById("weather").textContent =
+      "上砂川町の天気を取得できません";
+
     document.getElementById("forecastList").innerHTML =
-      "<p class='loading'>天気情報を取得できませんでした</p>";
+      '<p class="loading error-message">' +
+      "天気情報を取得できませんでした" +
+      "</p>";
   }
 }
+
 updateWeather();
-setInterval(updateWeather, CONFIG.weatherRefresh); // 30分ごとに更新
+setInterval(updateWeather, CONFIG.weatherRefresh);
 
 /* =========================================================
-   お知らせ・会議室データの読み込み
-   スプレッドシート連携が決まったらここを実装
+   GASからお知らせ・会議室予定を取得
    ========================================================= */
-function loadNews() {
-  // TODO: CONFIG.newsDataUrl から取得して描画
-  // 下記はダミーデータ
-  const dummy = [
-    { title: "窓口混雑のお知らせ", body: "本日午後は混雑が予想されます。" },
-    { title: "システムメンテナンス", body: "9/20 夜間に一部サービスを停止します。" }
-  ];
-  const html = dummy.map(n =>
-    `<div class="news-item"><div class="t">${n.title}</div><div class="b">${n.body}</div></div>`
-  ).join("");
-  document.getElementById("newsList").innerHTML = html || "<p class='loading'>お知らせはありません</p>";
+
+let isLoadingData = false;
+
+async function loadAllData() {
+  // 前回の通信が終わっていない場合は重複実行しない
+  if (isLoadingData) {
+    return;
+  }
+
+  if (
+    !CONFIG.dataApiUrl ||
+    CONFIG.dataApiUrl.includes("ここにGAS")
+  ) {
+    showDataError("GASのWebアプリURLが設定されていません。");
+    return;
+  }
+
+  isLoadingData = true;
+
+  try {
+    /*
+     * type=all：
+     * お知らせと会議室予定をまとめて取得
+     *
+     * _=現在時刻：
+     * Androidブラウザなどのキャッシュ対策
+     */
+    const separator = CONFIG.dataApiUrl.includes("?") ? "&" : "?";
+    const url =
+      CONFIG.dataApiUrl +
+      separator +
+      "type=all&_=" +
+      Date.now();
+
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "follow"
+    });
+
+    if (!response.ok) {
+      throw new Error(`GAS HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(
+        data.error || "GASからエラーが返されました。"
+      );
+    }
+
+    renderNews(Array.isArray(data.news) ? data.news : []);
+    renderRooms(Array.isArray(data.rooms) ? data.rooms : []);
+  } catch (error) {
+    console.error("GASデータ取得エラー:", error);
+
+    showDataError(
+      "お知らせ・会議室予定を取得できませんでした。"
+    );
+  } finally {
+    isLoadingData = false;
+  }
 }
 
-function loadRooms() {
-  // TODO: CONFIG.roomDataUrl から取得して描画
-  const dummy = [
-    { time: "10:00-12:00", room: "第1会議室", use: "定例会議" },
-    { time: "13:30-15:00", room: "第2会議室", use: "打合せ" }
-  ];
-  let html = "<table><tr><th>時間</th><th>会議室</th><th>用件</th></tr>";
-  dummy.forEach(r => {
-    html += `<tr><td>${r.time}</td><td>${r.room}</td><td>${r.use}</td></tr>`;
+/*
+ * お知らせを表示
+ * textContentを使い、スプレッドシートの入力を
+ * HTMLとして実行しないようにします。
+ */
+function renderNews(news) {
+  const container = document.getElementById("newsList");
+
+  if (news.length === 0) {
+    container.innerHTML =
+      '<p class="loading">現在、お知らせはありません</p>';
+    return;
+  }
+
+  container.replaceChildren();
+
+  news.forEach(item => {
+    const newsItem = document.createElement("div");
+    newsItem.className = "news-item";
+
+    const title = document.createElement("div");
+    title.className = "t";
+    title.textContent = item.title || "";
+
+    const body = document.createElement("div");
+    body.className = "b";
+    body.textContent = item.body || "";
+
+    newsItem.appendChild(title);
+    newsItem.appendChild(body);
+    container.appendChild(newsItem);
   });
-  html += "</table>";
-  document.getElementById("roomList").innerHTML = html;
 }
 
-function loadAllData() {
-  loadNews();
-  loadRooms();
+/*
+ * 会議室利用予定を表示
+ */
+function renderRooms(rooms) {
+  const container = document.getElementById("roomList");
+
+  if (rooms.length === 0) {
+    container.innerHTML =
+      '<p class="loading">' +
+      "本日の会議室利用予定はありません" +
+      "</p>";
+    return;
+  }
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const tbody = document.createElement("tbody");
+  const headerRow = document.createElement("tr");
+
+  ["時間", "会議室", "用件"].forEach(label => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headerRow.appendChild(th);
+  });
+
+  thead.appendChild(headerRow);
+
+  rooms.forEach(item => {
+    const row = document.createElement("tr");
+
+    [item.time, item.room, item.use].forEach(value => {
+      const td = document.createElement("td");
+      td.textContent = value || "";
+      row.appendChild(td);
+    });
+
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+
+  container.replaceChildren(table);
 }
+
+function showDataError(message) {
+  const newsMessage = document.createElement("p");
+  newsMessage.className = "loading error-message";
+  newsMessage.textContent = message;
+
+  const roomMessage = document.createElement("p");
+  roomMessage.className = "loading error-message";
+  roomMessage.textContent = message;
+
+  document
+    .getElementById("newsList")
+    .replaceChildren(newsMessage);
+
+  document
+    .getElementById("roomList")
+    .replaceChildren(roomMessage);
+}
+
 loadAllData();
 setInterval(loadAllData, CONFIG.dataRefresh);
 
 /* =========================================================
    画像スライド
    ========================================================= */
-let imgIndex = 0;
-function nextImage() {
-  if (CONFIG.images.length === 0) return;
-  document.getElementById("slideImg").src = CONFIG.images[imgIndex];
-  imgIndex = (imgIndex + 1) % CONFIG.images.length;
+
+let imageIndex = 0;
+let imageTimer = null;
+
+function showNextImage() {
+  if (CONFIG.images.length === 0) {
+    return;
+  }
+
+  const image = document.getElementById("slideImg");
+  image.src = CONFIG.images[imageIndex];
+
+  imageIndex = (imageIndex + 1) % CONFIG.images.length;
 }
-nextImage();
-setInterval(nextImage, CONFIG.imageInterval);
+
+function startImageSlideshow() {
+  showNextImage();
+
+  if (imageTimer !== null) {
+    clearInterval(imageTimer);
+  }
+
+  imageTimer = setInterval(
+    showNextImage,
+    CONFIG.imageInterval
+  );
+}
+
+startImageSlideshow();
 
 /* =========================================================
    画面ローテーション
    ========================================================= */
-const screens = ["newsScreen", "roomScreen", "imgScreen", "weatherScreen"];
+
+const screens = [
+  "newsScreen",
+  "roomScreen",
+  "imgScreen",
+  "weatherScreen"
+];
+
 let screenIndex = 0;
-function nextScreen() {
-  screens.forEach(id => document.getElementById(id).classList.remove("active"));
-  document.getElementById(screens[screenIndex]).classList.add("active");
-  screenIndex = (screenIndex + 1) % screens.length;
+
+function showScreen(index) {
+  screens.forEach(id => {
+    document.getElementById(id).classList.remove("active");
+  });
+
+  document
+    .getElementById(screens[index])
+    .classList.add("active");
 }
-setInterval(nextScreen, CONFIG.screenInterval);
+
+function showNextScreen() {
+  screenIndex = (screenIndex + 1) % screens.length;
+  showScreen(screenIndex);
+}
+
+// 最初はお知らせ画面を表示
+showScreen(screenIndex);
+
+setInterval(
+  showNextScreen,
+  CONFIG.screenInterval
+);
+
+/* =========================================================
+   ページ全体の定期再読み込み
+   Android TVの長時間連続運用対策として、6時間ごとに再読込
+   ========================================================= */
+
+setTimeout(() => {
+  window.location.reload();
+}, 21600000);
 </script>
 </body>
 </html>
