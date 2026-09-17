@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デジタルサイネージ</title>
+<style>
+  /* ===== 基本設定（TV全画面・16:9想定） ===== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0b1f3a;
+    color: #fff;
+    font-family: "Noto Sans JP", "Meiryo", sans-serif;
+    overflow: hidden; /* スクロールバー非表示 */
+    cursor: none;     /* サイネージなのでカーソル非表示 */
+  }
+  /* ===== 上部の常時表示バー（時計・天気） ===== */
+  #topbar {
+    position: fixed; top: 0; left: 0; width: 100%; height: 12vh;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 3vw;
+    background: rgba(0,0,0,0.35);
+    z-index: 10;
+  }
+  #clock { font-size: 4.5vh; font-weight: bold; }
+  #date  { font-size: 2.5vh; opacity: 0.85; }
+  #weather { font-size: 3.5vh; }
+
+  /* ===== 各画面（スライド）の共通設定 ===== */
+  .screen {
+    position: fixed; top: 12vh; left: 0;
+    width: 100%; height: 88vh;
+    display: none;
+    padding: 4vh 4vw;
+    animation: fade 1s ease;
+  }
+  .screen.active { display: block; }
+  @keyframes fade { from {opacity:0;} to {opacity:1;} }
+
+  h2.title {
+    font-size: 5vh; margin-bottom: 3vh;
+    border-left: 1.2vh solid #ffcc00; padding-left: 2vw;
+  }
+
+  /* ===== お知らせ ===== */
+  .news-item {
+    background: rgba(255,255,255,0.08);
+    border-radius: 1.5vh;
+    padding: 2.5vh 3vw; margin-bottom: 2.5vh;
+  }
+  .news-item .t { font-size: 3.5vh; font-weight: bold; margin-bottom: 1vh; }
+  .news-item .b { font-size: 2.8vh; opacity: 0.9; }
+
+  /* ===== 会議室予定（表） ===== */
+  table { width: 100%; border-collapse: collapse; font-size: 3vh; }
+  th, td { padding: 2vh 1.5vw; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.2); }
+  th { background: rgba(255,204,0,0.2); font-size: 2.8vh; }
+
+  /* ===== 画像スライド ===== */
+  #imgScreen img {
+    width: 100%; height: 100%; object-fit: contain;
+  }
+
+  /* ===== 読み込み中表示 ===== */
+  .loading { font-size: 3vh; opacity: 0.6; }
+</style>
+</head>
+<body>
+
+  <!-- 常時表示バー -->
+  <div id="topbar">
+    <div>
+      <div id="clock">--:--:--</div>
+      <div id="date">----/--/-- (-)</div>
+    </div>
+    <div id="weather">天気を取得中…</div>
+  </div>
+
+  <!-- 画面1：お知らせ -->
+  <section id="newsScreen" class="screen active">
+    <h2 class="title">お知らせ</h2>
+    <div id="newsList"><p class="loading">読み込み中…</p></div>
+  </section>
+
+  <!-- 画面2：会議室予定 -->
+  <section id="roomScreen" class="screen">
+    <h2 class="title">本日の会議室利用予定</h2>
+    <div id="roomList"><p class="loading">読み込み中…</p></div>
+  </section>
+
+  <!-- 画面3：画像スライド -->
+  <section id="imgScreen" class="screen">
+    <img id="slideImg" src="" alt="">
+  </section>
+
+<script>
+/* =========================================================
+   設定（ここを自分の環境に合わせて変更する）
+   ========================================================= */
+const CONFIG = {
+  // 画面を切り替える間隔（ミリ秒）
+  screenInterval: 15000,      // 15秒ごとに画面切替
+  // データを再取得する間隔（ミリ秒）※原課の更新を反映
+  dataRefresh: 300000,        // 5分ごとに再取得
+  // 画像スライドの切替間隔
+  imageInterval: 7000,        // 7秒ごと
+  // 画像ファイル（GitHubリポジトリ内 images/ フォルダに置く想定）
+  images: [
+    "images/photo1.jpg",
+    "images/photo2.jpg",
+    "images/photo3.jpg"
+  ],
+  // Googleスプレッドシート等から取得するデータURL（後で差し替え）
+  newsDataUrl: "",  // 例: GASのWebアプリURL や 公開CSV/JSON
+  roomDataUrl: ""
+};
+
+/* =========================================================
+   時計・日付
+   ========================================================= */
+function updateClock() {
+  const now = new Date();
+  const days = ["日","月","火","水","木","金","土"];
+  const p = n => String(n).padStart(2, "0");
+  document.getElementById("clock").textContent =
+    `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+  document.getElementById("date").textContent =
+    `${now.getFullYear()}/${p(now.getMonth()+1)}/${p(now.getDate())} (${days[now.getDay()]})`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* =========================================================
+   天気（※取得先は後で設定。ここはサンプル表示）
+   実装時は天気APIをfetchして中身を書き換える
+   ========================================================= */
+function updateWeather() {
+  // TODO: 天気APIをfetchして表示に反映する
+  document.getElementById("weather").textContent = "☀ 晴れ  22℃";
+}
+updateWeather();
+
+/* =========================================================
+   お知らせ・会議室データの読み込み
+   スプレッドシート連携が決まったらここを実装
+   ========================================================= */
+function loadNews() {
+  // TODO: CONFIG.newsDataurl から取得して描画
+  // 下記はダミーデータ
+  const dummy = [
+    { title: "窓口混雑のお知らせ", body: "本日午後は混雑が予想されます。" },
+    { title: "システムメンテナンス", body: "9/20 夜間に一部サービスを停止します。" }
+  ];
+  const html = dummy.map(n =>
+    `<div class="news-item"><div class="t">${n.title}</div><div class="b">${n.body}</div></div>`
+  ).join("");
+  document.getElementById("newsList").innerHTML = html || "<p class='loading'>お知らせはありません</p>";
+}
+
+function loadRooms() {
+  // TODO: CONFIG.roomDataUrl から取得して描画
+  const dummy = [
+    { time: "10:00-12:00", room: "第1会議室", use: "定例会議" },
+    { time: "13:30-15:00", room: "第2会議室", use: "打合せ" }
+  ];
+  let html = "<table><tr><th>時間</th><th>会議室</th><th>用件</th></tr>";
+  dummy.forEach(r => {
+    html += `<tr><td>${r.time}</td><td>${r.room}</td><td>${r.use}</td></tr>`;
+  });
+  html += "</table>";
+  document.getElementById("roomList").innerHTML = html;
+}
+
+function loadAllData() {
+  loadNews();
+  loadRooms();
+}
+loadAllData();
+setInterval(loadAllData, CONFIG.dataRefresh);
+
+/* =========================================================
+   画像スライド
+   ========================================================= */
+let imgIndex = 0;
+function nextImage() {
+  if (CONFIG.images.length === 0) return;
+  document.getElementById("slideImg").src = CONFIG.images[imgIndex];
+  imgIndex = (imgIndex + 1) % CONFIG.images.length;
+}
+nextImage();
+setInterval(nextImage, CONFIG.imageInterval);
+
+/* =========================================================
+   画面ローテーション
+   ========================================================= */
+const screens = ["newsScreen", "roomScreen", "imgScreen"];
+let screenIndex = 0;
+function nextScreen() {
+  screens.forEach(id => document.getElementById(id).classList.remove("active"));
+  document.getElementById(screens[screenIndex]).classList.add("active");
+  screenIndex = (screenIndex + 1) % screens.length;
+}
+setInterval(nextScreen, CONFIG.screenInterval);
+</script>
+</body>
+</html>
