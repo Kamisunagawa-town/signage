@@ -62,6 +62,23 @@
     width: 100%; height: 100%; object-fit: contain;
   }
 
+  /* ===== 天気予報 ===== */
+  .forecast { display: flex; gap: 2vw; justify-content: space-around; }
+  .fc-item {
+    flex: 1;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2vh;
+    padding: 3vh 1vw;
+    text-align: center;
+  }
+  .fc-day  { font-size: 3.5vh; font-weight: bold; margin-bottom: 2vh; }
+  .fc-icon { font-size: 9vh; line-height: 1; margin-bottom: 2vh; }
+  .fc-desc { font-size: 2.8vh; margin-bottom: 2vh; }
+  .fc-temp { font-size: 3.2vh; margin-bottom: 1.5vh; }
+  .fc-temp .max { color: #ff7b7b; font-weight: bold; }
+  .fc-temp .min { color: #7bb8ff; font-weight: bold; }
+  .fc-pop  { font-size: 2.4vh; opacity: 0.85; }
+
   /* ===== 読み込み中表示 ===== */
   .loading { font-size: 3vh; opacity: 0.6; }
 </style>
@@ -94,6 +111,12 @@
     <img id="slideImg" src="" alt="">
   </section>
 
+  <!-- 画面4：天気予報 -->
+  <section id="weatherScreen" class="screen">
+    <h2 class="title">上砂川町の天気予報</h2>
+    <div id="forecastList" class="forecast"><p class="loading">読み込み中…</p></div>
+  </section>
+
 <script>
 /* =========================================================
    設定（ここを自分の環境に合わせて変更する）
@@ -113,7 +136,9 @@ const CONFIG = {
   ],
   // Googleスプレッドシート等から取得するデータURL（後で差し替え）
   newsDataUrl: "",  // 例: GASのWebアプリURL や 公開CSV/JSON
-  roomDataUrl: ""
+  roomDataUrl: "",
+  // 天気の更新間隔（ミリ秒）
+  weatherRefresh: 1800000     // 30分ごと
 };
 
 /* =========================================================
@@ -132,21 +157,87 @@ setInterval(updateClock, 1000);
 updateClock();
 
 /* =========================================================
-   天気（※取得先は後で設定。ここはサンプル表示）
-   実装時は天気APIをfetchして中身を書き換える
+   天気（Open-Meteo・上砂川町）
+   API登録不要・無料・CORS対応
    ========================================================= */
-function updateWeather() {
-  // TODO: 天気APIをfetchして表示に反映する
-  document.getElementById("weather").textContent = "☀ 晴れ  22℃";
+
+// 上砂川町役場の座標
+const KAMISUNAGAWA = { lat: 43.48258, lon: 141.98397 };
+
+// 天気コード → 日本語＋アイコン変換表（WMO Weather codeに準拠）
+const WEATHER_MAP = {
+  0:  ["快晴", "☀"],
+  1:  ["晴れ", "🌤"],
+  2:  ["一部くもり", "⛅"],
+  3:  ["くもり", "☁"],
+  45: ["霧", "🌫"], 48: ["霧", "🌫"],
+  51: ["弱い霧雨", "🌦"], 53: ["霧雨", "🌦"], 55: ["強い霧雨", "🌧"],
+  61: ["弱い雨", "🌦"], 63: ["雨", "🌧"], 65: ["強い雨", "🌧"],
+  66: ["みぞれ", "🌧"], 67: ["みぞれ", "🌧"],
+  71: ["弱い雪", "🌨"], 73: ["雪", "❄"], 75: ["大雪", "❄"],
+  77: ["細氷", "❄"],
+  80: ["にわか雨", "🌦"], 81: ["にわか雨", "🌧"], 82: ["激しいにわか雨", "🌧"],
+  85: ["にわか雪", "🌨"], 86: ["強いにわか雪", "❄"],
+  95: ["雷雨", "⛈"], 96: ["雷雨(ひょう)", "⛈"], 99: ["激しい雷雨", "⛈"]
+};
+function codeToText(code) { return (WEATHER_MAP[code] || ["－", ""]); }
+
+async function updateWeather() {
+  const url = "https://api.open-meteo.com/v1/forecast"
+    + `?latitude=${KAMISUNAGAWA.lat}&longitude=${KAMISUNAGAWA.lon}`
+    + "&current_weather=true"
+    + "&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+    + "&timezone=Asia/Tokyo&forecast_days=4";
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    // --- 現在の天気（上部バー） ---
+    const cur = data.current_weather;
+    const [curText, curIcon] = codeToText(cur.weathercode);
+    document.getElementById("weather").textContent =
+      `${curIcon} ${curText}  ${Math.round(cur.temperature)}℃`;
+
+    // --- 週間予報（予報画面） ---
+    const d = data.daily;
+    const days = ["日","月","火","水","木","金","土"];
+    let html = "";
+    for (let i = 0; i < d.time.length; i++) {
+      const dt = new Date(d.time[i]);
+      const label = (i === 0) ? "今日"
+                  : (i === 1) ? "明日"
+                  : `${dt.getMonth()+1}/${dt.getDate()}(${days[dt.getDay()]})`;
+      const [txt, icon] = codeToText(d.weathercode[i]);
+      html += `
+        <div class="fc-item">
+          <div class="fc-day">${label}</div>
+          <div class="fc-icon">${icon}</div>
+          <div class="fc-desc">${txt}</div>
+          <div class="fc-temp">
+            <span class="max">${Math.round(d.temperature_2m_max[i])}℃</span> /
+            <span class="min">${Math.round(d.temperature_2m_min[i])}℃</span>
+          </div>
+          <div class="fc-pop">降水 ${d.precipitation_probability_max[i] ?? "－"}%</div>
+        </div>`;
+    }
+    document.getElementById("forecastList").innerHTML = html;
+
+  } catch (e) {
+    document.getElementById("weather").textContent = "天気を取得できません";
+    document.getElementById("forecastList").innerHTML =
+      "<p class='loading'>天気情報を取得できませんでした</p>";
+  }
 }
 updateWeather();
+setInterval(updateWeather, CONFIG.weatherRefresh); // 30分ごとに更新
 
 /* =========================================================
    お知らせ・会議室データの読み込み
    スプレッドシート連携が決まったらここを実装
    ========================================================= */
 function loadNews() {
-  // TODO: CONFIG.newsDataurl から取得して描画
+  // TODO: CONFIG.newsDataUrl から取得して描画
   // 下記はダミーデータ
   const dummy = [
     { title: "窓口混雑のお知らせ", body: "本日午後は混雑が予想されます。" },
@@ -194,7 +285,7 @@ setInterval(nextImage, CONFIG.imageInterval);
 /* =========================================================
    画面ローテーション
    ========================================================= */
-const screens = ["newsScreen", "roomScreen", "imgScreen"];
+const screens = ["newsScreen", "roomScreen", "imgScreen", "weatherScreen"];
 let screenIndex = 0;
 function nextScreen() {
   screens.forEach(id => document.getElementById(id).classList.remove("active"));
